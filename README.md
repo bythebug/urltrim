@@ -3,8 +3,6 @@
 Tiny personal URL shortener – short links, redirects, click counts, rate limiting, and custom aliases.  
 Stack: **FastAPI + PostgreSQL + Redis + RabbitMQ**.
 
----
-
 ## Architecture (high level)
 
 ```text
@@ -30,8 +28,6 @@ Stack: **FastAPI + PostgreSQL + Redis + RabbitMQ**.
 - `GET /{code}` checks Redis first (`url:{code}`), falls back to Postgres, then caches the result in Redis.
 - A click event is published to RabbitMQ on every redirect; the worker increments `links.clicks` asynchronously.
 
----
-
 ## Scaling strategy (what I’d do in production)
 
 - **API (FastAPI)**: keep it stateless so it can scale horizontally behind a load balancer.
@@ -49,8 +45,6 @@ Stack: **FastAPI + PostgreSQL + Redis + RabbitMQ**.
   - Add more consumers for higher click throughput.
   - Prefer idempotent increments (or aggregate in Redis then flush) if “exactly once” matters.
 
----
-
 ## Tradeoffs (intentional)
 
 - **Analytics is eventually consistent**: redirects publish events; the worker updates Postgres. If the worker lags, `/analytics/{code}` trails reality.
@@ -58,8 +52,6 @@ Stack: **FastAPI + PostgreSQL + Redis + RabbitMQ**.
 - **Schema management**: the app uses `create_all()` on startup (fast for a personal project). For “real” deploys, I’d switch to Alembic migrations.
 - **Rate limiting behavior**: `/shorten` returns `429` under load by design; redirects are not rate-limited.
 - **Publisher implementation**: click publishing uses a thread executor to avoid blocking the event loop (simple, but not the most efficient approach at very high QPS).
-
----
 
 ## Run locally (no Docker)
 
@@ -101,8 +93,6 @@ python -m consumer
 
 - API: `http://localhost:8001`  
 - Docs: `http://localhost:8001/docs`
-
----
 
 ## Run with Docker (services or full stack)
 
@@ -147,8 +137,6 @@ docker run --rm -p 8001:8000 \
 
 Then hit `http://localhost:8001`.
 
----
-
 ## Deploy (practical options)
 
 ### Single VM (Docker Compose)
@@ -166,8 +154,6 @@ Then hit `http://localhost:8001`.
 - Configure health checks:
   - API: `GET /`
   - Worker: liveness via process health + RabbitMQ connectivity.
-
----
 
 ## API surface
 
@@ -191,8 +177,6 @@ Then hit `http://localhost:8001`.
 
 - **Rate limiting**
   - 60 requests/min per IP on `POST /shorten` (configurable via `rate_limit_per_minute`)
-
----
 
 ## Load testing (Locust)
 
@@ -227,8 +211,6 @@ locust -f locustfile.py --headless -u 100 -r 10 -t 45s --host http://127.0.0.1:8
 - **Analytics** (`GET /analytics/{code}`): 2,711 requests, ~60 req/s, **p95 ~9ms**
 - **Shorten** (`POST /shorten`): 3,004 requests, **2,944 were 429s** (rate limit working as designed)
 
----
-
 ## Files at a glance
 
 - `main.py` – FastAPI app + lifespan (creates tables, cleans up Redis / DB)
@@ -242,8 +224,6 @@ locust -f locustfile.py --headless -u 100 -r 10 -t 45s --host http://127.0.0.1:8
 - `db.py`, `models.py` – async SQLAlchemy + `Link` model
 - `config.py` – settings via `pydantic-settings`
 - `locustfile.py` – simple load test profile
-
----
 
 ## PostgreSQL schema
 
